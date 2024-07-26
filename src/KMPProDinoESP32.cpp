@@ -558,3 +558,14 @@ int KMPProDinoESP32Class::rs485Read(unsigned long delayWait, uint8_t repeatTime)
 
 	return RS485Serial.read();
 }
+
+void KMPProDinoESP32Class::rs485print(const String &s)
+{
+	RS485Serial.print(s);
+}
+
+bool KMPProDinoESP32Class::rs485find(const char *target)
+{
+        return RS485Serial.find(target);
+}
+

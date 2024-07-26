@@ -351,6 +351,18 @@ class KMPProDinoESP32Class
 	* @return void
 	*/
 	void RS485BeginWrite();
+	/**
+	* @brief Print string to RS485.
+	*
+	* @return void
+	*/
+	void rs485print(const String &s);
+	/**
+	* @brief Find string in RS485.
+	*
+	* @return void
+	*/
+	bool rs485find(const char *target);
 
 	private:
 		void beginEthernet(bool startEthernet);
