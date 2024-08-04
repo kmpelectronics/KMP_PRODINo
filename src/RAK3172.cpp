@@ -5,9 +5,12 @@ HardwareSerial* _rak_debug_serial;
 
 uint8_t _rak_rst;
 
-RAK3172::RAK3172(HardwareSerial* serial, HardwareSerial* debugSerial) {
+uint8_t RAK3172_DEBUG;
+
+RAK3172::RAK3172(bool debug, HardwareSerial* serial, HardwareSerial* debugSerial) {
     _rak_at_serial = serial;
     _rak_debug_serial = debugSerial;
+    RAK3172_DEBUG = debug;
 }
 
 RAK3172::~RAK3172() {

@@ -4,7 +4,7 @@
 #include <HardwareSerial.h>
 #include <Arduino.h>
 
-#define RAK3172_DEBUG true
+//#define RAK3172_DEBUG true
 #define RAK3172_DEFAULT_DEBUG_SERIAL &Serial
 
 #define RAK3172_DEFAULT_RX 25
@@ -32,7 +32,7 @@ typedef enum {
 
 class RAK3172 {
 public:
-    RAK3172(HardwareSerial *serial=RAK3172_DEFAULT_SERIAL, HardwareSerial *debugSerial = RAK3172_DEFAULT_DEBUG_SERIAL);
+    RAK3172(bool debug = false, HardwareSerial *serial=RAK3172_DEFAULT_SERIAL, HardwareSerial *debugSerial = RAK3172_DEFAULT_DEBUG_SERIAL);
     ~RAK3172();
 
     bool begin(uint8_t rx = RAK3172_DEFAULT_RX, uint8_t tx = RAK3172_DEFAULT_TX, uint8_t rst = RAK3172_DEFAULT_RST);
