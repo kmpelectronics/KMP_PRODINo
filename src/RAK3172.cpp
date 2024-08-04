@@ -30,10 +30,12 @@ bool RAK3172::begin(uint8_t rx, uint8_t tx, uint8_t rst) {
     if(sendAT("AT","OK", RAK3172_TIMEOUT_100, RAK3172_DEBUG))
     {
         _rak_debug_serial->println("LoRa OK. ");
+        _rak_debug_serial->flush();
     }
     else
     {
         _rak_debug_serial->println("LoRa modem not responding. ");
+        _rak_debug_serial->flush();
         return false;
     }
 
@@ -255,7 +257,11 @@ String RAK3172::sendAT(String command, const int timeout, bool debug)
             response += c;
         }
     }
-    if (debug)_rak_debug_serial->print(response);
+    if (debug)
+    {   
+        _rak_debug_serial->print(response);
+        _rak_debug_serial->flush();
+    }
     return response;
 }
 
@@ -283,7 +289,11 @@ String RAK3172::getline(int timeout, bool debug)
             response += c;
             if (c == '\n')
             {
-                if (debug)_rak_debug_serial->print(response);
+                if (debug)
+                {   
+                    _rak_debug_serial->print(response);
+                    _rak_debug_serial->flush();
+                }
                 return response;
             }
         }
