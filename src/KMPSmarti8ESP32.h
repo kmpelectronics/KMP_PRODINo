@@ -256,7 +256,8 @@ class KMPSmarti8ESP32Class
 	*/
 	bool getOptoInState(OptoIn optoIn);
 
-	uint8_t getOptoInState(void);
+
+    uint8_t getOptoInState(void);
 
 	/**
 	* @brief Connect to RS485. With default configuration SERIAL_8N1.
@@ -373,7 +374,8 @@ class KMPSmarti8ESP32Class
 	bool rs485find(const char *target);
 
 	private:
-		void beginEthernet(bool startEthernet);
+	void beginEthernet(bool startEthernet);
+	uint16_t reverseBits16(uint16_t n);
 };
 
 //extern KMPSmarti8ESP32Class board;

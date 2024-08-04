@@ -300,16 +300,12 @@ void KMPSmarti8ESP32Class::setAllRelaysOff()
 	setAllRelaysState(false);
 }
 
-//uint8_t KMPSmarti8ESP32Class::getRelayState(void)
-//{
-//	uint8_t tState = (MCP23S08.GetPinState() & 0xf0) >> 4;
-//	uint8_t tRet = 0;
-//	if (tState & (1 << 0))tRet |= 1 << 3;
-//	if (tState & (1 << 1))tRet |= 1 << 2;
-//	if (tState & (1 << 2))tRet |= 1 << 1;
-//	if (tState & (1 << 3))tRet |= 1 << 0;
-//	return tRet;
-//}
+uint8_t KMPSmarti8ESP32Class::getRelayState(void)
+{
+	uint16_t tState = Exp1.digitalRead();
+	uint16_t revState = reverseBits16(tState);
+	return (uint8_t)(revState & 0xFF);
+}
 //
 bool KMPSmarti8ESP32Class::getRelayState(uint8_t relayNumber)
 {
@@ -333,16 +329,11 @@ bool KMPSmarti8ESP32Class::getRelayState(Relay relay)
 /* ----------------------------------------------------------------------- */
 /* Opto input methods. */
 /* ----------------------------------------------------------------------- */
-//uint8_t KMPSmarti8ESP32Class::getOptoInState(void)
-//{
-//	uint8_t tState = ~MCP23S08.GetPinState();
-//	uint8_t tRet = 0;
-//	if (tState & (1 << 0))tRet |= 1 << 3;
-//	if (tState & (1 << 1))tRet |= 1 << 2;
-//	if (tState & (1 << 2))tRet |= 1 << 1;
-//	if (tState & (1 << 3))tRet |= 1 << 0;
-//	return tRet;
-//}
+uint8_t KMPSmarti8ESP32Class::getOptoInState(void)
+{
+	uint16_t tState = Exp1.digitalRead();
+	return (uint8_t)(tState & 0xFF);
+}
 
 bool KMPSmarti8ESP32Class::getOptoInState(uint8_t optoInNumber)
 {
@@ -361,6 +352,16 @@ bool KMPSmarti8ESP32Class::getOptoInState(uint8_t optoInNumber)
 bool KMPSmarti8ESP32Class::getOptoInState(OptoIn optoIn)
 {
 	return getOptoInState((uint8_t)optoIn);
+}
+
+uint16_t KMPSmarti8ESP32Class::reverseBits16(uint16_t n) {
+    uint16_t reversed = 0;
+    for (int i = 0; i < 16; i++) {
+        reversed <<= 1;            // Shift reversed left by 1 to make space for the next bit
+        reversed |= (n & 1);       // Copy the least significant bit of n to reversed
+        n >>= 1;                   // Shift n right by 1 to get the next bit
+    }
+    return reversed;
 }
 
 /* ----------------------------------------------------------------------- */
