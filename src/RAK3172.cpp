@@ -117,6 +117,7 @@ bool RAK3172::setReceiveMode(uint16_t timeout)
     flushRX();
     sendAT("AT+PRECV=" + String(timeout), 0, RAK3172_DEBUG);
     if(!getline("OK", RAK3172_TIMEOUT_300, RAK3172_DEBUG))return false;
+    delay(5);
     return true;
 }
 
