@@ -368,7 +368,7 @@ class KMPSmarti8ESP32Class
 	/**
 	* @brief Find string in RS485.
 	*
-	* @return void
+	* @return bool
 	*/
 	bool rs485find(const char *target);
 
