@@ -25,9 +25,8 @@
 #include <HardwareSerial.h>
 #include <NeoPixelBus.h>
 #include "MCP23S08.h"
-// When the library is fixed to work with ESP32 we will change this reference.
-//#include <Ethernet.h>
-#include "Ethernet/Ethernet.h"
+#include <Ethernet.h>
+
 
 // Relays count
 #define RELAY_COUNT  4
