@@ -8,3 +8,4 @@ framework = arduino
 upload_speed = 921600
 lib_deps = 
 	makuna/NeoPixelBus@^2.8.0
+	https://github.com/kmpelectronics/Ethernet.git
