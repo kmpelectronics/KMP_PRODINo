@@ -221,17 +221,14 @@ void initADC(void)
 
 uint16_t ReadADCChannel(uint8_t channel)
 {
-  uint16_t measured = 0;
   if(channel<4)
   {
-    measured = ADS1.readADC(channel); 
+    return ADS1.readADC(channel); 
   }
   else
   {
-    measured = ADS2.readADC(channel-4);
+    return ADS2.readADC(channel-4);
   }
-
-  return (measured * 6)/10;
 }
 
 bool SendMsg(uint8_t* txMessage, size_t txMessageSize)

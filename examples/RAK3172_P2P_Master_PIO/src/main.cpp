@@ -20,7 +20,50 @@ ADS1115 ADS2(0x49);
 #define SDA 14
 #define SCL 13
 
-#define AI_COUNT 8 
+//Local Add-on type
+#define LOCAL_AI_TYPE_U8I0 //8 analog inputs 0-10V 
+//#define LOCAL_AI_TYPE_U4I4 //4 analog inputs 0-10V and 4 analog inputs 4-20mA (0-20mA)
+
+//Remote Add-on type
+//#define REMOTE_AI_TYPE_U8I0 //8 analog inputs 0-10V 
+#define REMOTE_AI_TYPE_U4I4 //4 analog inputs 0-10V and 4 analog inputs 4-20mA (0-20mA)
+
+#ifdef LOCAL_AI_TYPE_U4I4 
+
+#define AI_L_U_COUNT 4
+#define AI_L_U_OFFSET 0
+#define AI_L_I_COUNT 4
+#define AI_L_I_OFFSET 4
+
+#endif
+
+#ifdef LOCAL_AI_TYPE_U8I0
+
+#define AI_L_U_COUNT 8
+#define AI_L_U_OFFSET 0
+#define AI_L_I_COUNT 0
+#define AI_L_I_OFFSET 0
+
+#endif
+
+#ifdef REMOTE_AI_TYPE_U4I4 
+
+#define AI_R_U_COUNT 4
+#define AI_R_U_OFFSET 0
+#define AI_R_I_COUNT 4
+#define AI_R_I_OFFSET 4
+
+#endif
+
+#ifdef REMOTE_AI_TYPE_U8I0
+
+#define AI_R_U_COUNT 8
+#define AI_R_U_OFFSET 0
+#define AI_R_I_COUNT 0
+#define AI_R_I_OFFSET 0
+
+#endif
+
 #define DI_COUNT 8
 #define RELAY_COUNT 8
 
@@ -59,7 +102,8 @@ void readRemoteADC(uint8_t address);
 void readRemoteDI(uint8_t address);
 void readRemoteRelay(uint8_t address);
 void setRemoteRelay(uint8_t address, uint8_t state);
-void readLocalADC(void);
+void readLocalADCVoltage(void);
+void readLocalADCCurrent(void);
 void readLocalDI(void);
 void readLocalRelay(void);
 void setLocalRelay(uint8_t state);
@@ -86,7 +130,8 @@ void setup()
 void loop() 
 {
   readRemoteADC(SLAVE_ADDRESS);
-  readLocalADC();
+  readLocalADCVoltage();
+  readLocalADCCurrent();
 
   readRemoteDI(SLAVE_ADDRESS);
   readLocalDI();
@@ -120,15 +165,25 @@ void readRemoteADC(uint8_t address)
   }
   else
   {
-    Serial.print("Remote AI: ");
-    for(int i = 3; i < msglen; i+=2)
+    Serial.print("Remote AI Voltage: ");
+    for(int i = (AI_R_U_OFFSET*2) + 3; i < (AI_R_U_OFFSET*2)+(AI_R_U_COUNT*2)+2; i+=2)
     {
-      Serial.print("AI" + String((i-3)/2) + ":" + String((rxMessage[i]<<8) | rxMessage[i+1]) + "mV ");
+      uint16_t tADCvalue = (rxMessage[i]<<8) | rxMessage[i+1];
+      Serial.print("AI" + String((i-3)/2) + ":" + String((tADCvalue * 6)/10) + "mV ");
+    }
+    Serial.println();
+
+    Serial.print("Remote AI Current: ");
+    for(int i = (AI_R_I_OFFSET*2) + 3; i < (AI_R_I_OFFSET*2)+(AI_R_I_COUNT*2)+2; i+=2)
+    {
+      uint16_t tADCvalue = (rxMessage[i]<<8) | rxMessage[i+1];
+      Serial.print("AI" + String((i-3)/2) + ":" + String((tADCvalue *115)/100) + "uA ");
     }
     Serial.println();
     Serial.flush();
   }
 }
+
 
 void readRemoteDI(uint8_t address)
 {
@@ -214,12 +269,25 @@ void setRemoteRelay(uint8_t address, uint8_t state)
   }
 }
 
-void readLocalADC(void)
+void readLocalADCVoltage(void)
 {
-  Serial.print("Local AI: ");
-  for(int i = 0; i < AI_COUNT; i++)
+  Serial.print("Local AI Voltage: ");
+  for(int i = AI_L_U_OFFSET; i < AI_L_U_COUNT + AI_L_U_OFFSET; i++)
   {
-    Serial.print("AI" + String(i) + ":" + String(ReadADCChannel(i)) + "mV ");
+    uint16_t tADCvalue = ReadADCChannel(i);
+    Serial.print("AI" + String(i) + ":" + String((tADCvalue * 6)/10) + "mV ");
+  }
+  Serial.println();
+  Serial.flush();
+}
+
+void readLocalADCCurrent(void)
+{
+  Serial.print("Local AI Current: ");
+  for(int i = AI_L_I_OFFSET; i < AI_L_I_COUNT + AI_L_I_OFFSET; i++)
+  {
+    uint16_t tADCvalue = ReadADCChannel(i);
+    Serial.print("AI" + String(i) + ":" + String((tADCvalue *115)/100) + "uA ");
   }
   Serial.println();
   Serial.flush();
@@ -352,15 +420,12 @@ void initADC(void)
 
 uint16_t ReadADCChannel(uint8_t channel)
 {
-  uint16_t measured = 0;
   if(channel<4)
   {
-    measured = ADS1.readADC(channel); 
+    return ADS1.readADC(channel); 
   }
   else
   {
-    measured = ADS2.readADC(channel-4);
+    return ADS2.readADC(channel-4);
   }
-
-  return (measured * 6)/10;
 }
