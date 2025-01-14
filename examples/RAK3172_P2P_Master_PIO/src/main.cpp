@@ -3,9 +3,9 @@
 #include "KMPCommon.h"
 #include "KMPSmarti8ESP32.h"
 
-#include "ADS1X15.h"
-
 #include "RAK3172.h"
+
+#include <Adafruit_ADS1X15.h>
 
 #define DEFAULT_CMD_TIMEOUT 1000
 
@@ -14,15 +14,15 @@ RAK3172 LoRa(false); //false for normal mode
 
 KMPSmarti8ESP32Class board;
 
-ADS1115 ADS1(0x48);
-ADS1115 ADS2(0x49);
+Adafruit_ADS1015 ADS1;     /* Use this for the 12-bit version */
+Adafruit_ADS1015 ADS2;     /* Use this for the 12-bit version */
 
 #define SDA 14
 #define SCL 13
 
 //Local Add-on type
-#define LOCAL_AI_TYPE_U8I0 //8 analog inputs 0-10V 
-//#define LOCAL_AI_TYPE_U4I4 //4 analog inputs 0-10V and 4 analog inputs 4-20mA (0-20mA)
+//#define LOCAL_AI_TYPE_U8I0 //8 analog inputs 0-10V 
+#define LOCAL_AI_TYPE_U4I4 //4 analog inputs 0-10V and 4 analog inputs 4-20mA (0-20mA)
 
 //Remote Add-on type
 //#define REMOTE_AI_TYPE_U8I0 //8 analog inputs 0-10V 
@@ -107,8 +107,24 @@ void readLocalADCCurrent(void);
 void readLocalDI(void);
 void readLocalRelay(void);
 void setLocalRelay(uint8_t state);
+uint16_t adctomv(uint16_t adc);
+uint16_t adctoua(uint16_t adc);
 
 
+
+typedef enum {
+  HW_NONE = 0x00,
+  HW_VER2 = 0x01,
+  HW_VER3 = 0x02
+} HW_Version;
+
+HW_Version ADC_HW_VER = HW_NONE;
+
+
+float scaleFactor;       // (R1 + R2) / R2
+float referenceVoltage;  // ADC reference voltage
+int adcResolution;       // ADC resolution
+float resistorValue;     //Shunt resistor value in Ohms
 
 
 void setup() 
@@ -152,6 +168,7 @@ void loop()
 
   Serial.println("====================================================");
   delay(2000);
+
 }
 
 void readRemoteADC(uint8_t address)
@@ -169,7 +186,7 @@ void readRemoteADC(uint8_t address)
     for(int i = (AI_R_U_OFFSET*2) + 3; i < (AI_R_U_OFFSET*2)+(AI_R_U_COUNT*2)+2; i+=2)
     {
       uint16_t tADCvalue = (rxMessage[i]<<8) | rxMessage[i+1];
-      Serial.print("AI" + String((i-3)/2) + ":" + String((tADCvalue * 6)/10) + "mV ");
+      Serial.print("AI" + String((i-3)/2) + ":" + String(adctomv(tADCvalue)) + "mV ");
     }
     Serial.println();
 
@@ -177,7 +194,7 @@ void readRemoteADC(uint8_t address)
     for(int i = (AI_R_I_OFFSET*2) + 3; i < (AI_R_I_OFFSET*2)+(AI_R_I_COUNT*2)+2; i+=2)
     {
       uint16_t tADCvalue = (rxMessage[i]<<8) | rxMessage[i+1];
-      Serial.print("AI" + String((i-3)/2) + ":" + String((tADCvalue *115)/100) + "uA ");
+      Serial.print("AI" + String((i-3)/2) + ":" + String(adctoua(tADCvalue)) + "uA ");
     }
     Serial.println();
     Serial.flush();
@@ -275,7 +292,7 @@ void readLocalADCVoltage(void)
   for(int i = AI_L_U_OFFSET; i < AI_L_U_COUNT + AI_L_U_OFFSET; i++)
   {
     uint16_t tADCvalue = ReadADCChannel(i);
-    Serial.print("AI" + String(i) + ":" + String((tADCvalue * 6)/10) + "mV ");
+    Serial.print("AI" + String(i) + ":" + String(adctomv(tADCvalue)) + "mV ");
   }
   Serial.println();
   Serial.flush();
@@ -287,7 +304,7 @@ void readLocalADCCurrent(void)
   for(int i = AI_L_I_OFFSET; i < AI_L_I_COUNT + AI_L_I_OFFSET; i++)
   {
     uint16_t tADCvalue = ReadADCChannel(i);
-    Serial.print("AI" + String(i) + ":" + String((tADCvalue *115)/100) + "uA ");
+    Serial.print("AI" + String(i) + ":" + String(adctoua(tADCvalue)) + "uA ");
   }
   Serial.println();
   Serial.flush();
@@ -315,7 +332,6 @@ void readLocalRelay(void)
   Serial.flush();
 }
 
-
 void setLocalRelay(uint8_t state)
 {
 
@@ -327,7 +343,6 @@ void setLocalRelay(uint8_t state)
   Serial.flush();
 
 }
-
 
 void LoRaInit(void)
 {
@@ -404,28 +419,66 @@ void initADC(void)
 {
   Wire.begin(SDA,SCL);
 
-  if(!ADS1.begin())
+  if((ADS1.begin(0x48))&&(ADS2.begin(0x49)))
   {
-    Serial.println("ADC1 not initialized");
+    ADC_HW_VER = HW_VER2;
+    scaleFactor = 32.0 / 10.0;  // (R1 + R2) / R2
+    referenceVoltage = 4096.0;  // Reference voltage in mV
+    adcResolution = 2048;       // resolution 11-bit
+    resistorValue = 162;        //Shunt resistor value in Ohms
+
+    ADS1.setGain(GAIN_ONE);
+    ADS2.setGain(GAIN_ONE);
+
+    Serial.println("ADC_HW_V2 init OK");
   }
-  if(!ADS2.begin())
+  else if((ADS1.begin(0x4A))&&(ADS2.begin(0x4B)))
   {
-    Serial.println("ADC2 not initialized");
+    ADC_HW_VER = HW_VER3;
+
+    scaleFactor = 50.2 / 10.0;  // (R1 + R2) / R2
+    referenceVoltage = 2048.0;  // Reference voltage in mV
+    adcResolution = 2048;       // resolution 11-bit
+    resistorValue = 100;        //Shunt resistor value in Ohms
+
+    ADS1.setGain(GAIN_TWO);
+    ADS2.setGain(GAIN_TWO);
+
+    Serial.println("ADC_HW_V3 init OK");
+  }
+  else
+  {
+    
+    while (1)
+    {
+      Serial.println("ADC not initialized");
+      delay(1000);
+    }
+    
   }
 
-  Serial.println("ADC init OK");
-  ADS1.setGain(0);
-  ADS2.setGain(0);
 }
 
 uint16_t ReadADCChannel(uint8_t channel)
 {
   if(channel<4)
   {
-    return ADS1.readADC(channel); 
+    return ADS1.readADC_SingleEnded(channel); 
   }
   else
   {
-    return ADS2.readADC(channel-4);
+    return ADS2.readADC_SingleEnded(channel-4);
   }
+}
+
+uint16_t adctomv(uint16_t adc)
+{
+  return (adc * referenceVoltage / adcResolution) * scaleFactor;
+}
+
+uint16_t adctoua(uint16_t adc)
+{
+  float voltage_mV = (adc * referenceVoltage) / adcResolution;
+  uint16_t current_uA = (voltage_mV * 1000) / resistorValue;
+  return current_uA;
 }

@@ -3,7 +3,7 @@
 #include "KMPCommon.h"
 #include "KMPSmarti8ESP32.h"
 
-#include "ADS1X15.h"
+#include <Adafruit_ADS1X15.h>
 
 #include "RAK3172.h"
 
@@ -12,8 +12,8 @@ RAK3172 LoRa(false);//no debug
 
 KMPSmarti8ESP32Class board;
 
-ADS1115 ADS1(0x48);
-ADS1115 ADS2(0x49);
+Adafruit_ADS1015 ADS1;     /* Use this for the 12-bit version */
+Adafruit_ADS1015 ADS2;     /* Use this for the 12-bit version */
 
 #define SDA 14
 #define SCL 13
@@ -59,6 +59,13 @@ void initADC(void);
 uint16_t ReadADCChannel(uint8_t channel);
 bool SendMsg(uint8_t* txMessage, size_t txMessageSize);
 
+typedef enum {
+  HW_NONE = 0x00,
+  HW_VER2 = 0x01,
+  HW_VER3 = 0x02
+} HW_Version;
+
+HW_Version ADC_HW_VER = HW_NONE;
 
 
 void setup() 
@@ -205,29 +212,46 @@ void initADC(void)
 {
   Wire.begin(SDA,SCL);
 
-  if(!ADS1.begin())
+  if((ADS1.begin(0x48))&&(ADS2.begin(0x49)))
   {
-    Serial.println("ADC1 not initialized");
+    ADC_HW_VER = HW_VER2;
+
+    ADS1.setGain(GAIN_ONE);
+    ADS2.setGain(GAIN_ONE);
+
+    Serial.println("ADC_HW_V2 init OK");
   }
-  if(!ADS2.begin())
+  else if((ADS1.begin(0x4A))&&(ADS2.begin(0x4B)))
   {
-    Serial.println("ADC2 not initialized");
+    ADC_HW_VER = HW_VER3;
+
+    ADS1.setGain(GAIN_TWO);
+    ADS2.setGain(GAIN_TWO);
+
+    Serial.println("ADC_HW_V3 init OK");
+  }
+  else
+  {
+    
+    while (1)
+    {
+      Serial.println("ADC not initialized");
+      delay(1000);
+    }
+    
   }
 
-  Serial.println("ADC init OK");
-  ADS1.setGain(0);
-  ADS2.setGain(0);
 }
 
 uint16_t ReadADCChannel(uint8_t channel)
 {
   if(channel<4)
   {
-    return ADS1.readADC(channel); 
+    return ADS1.readADC_SingleEnded(channel); 
   }
   else
   {
-    return ADS2.readADC(channel-4);
+    return ADS2.readADC_SingleEnded(channel-4);
   }
 }
 
