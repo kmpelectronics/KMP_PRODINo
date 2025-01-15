@@ -39,6 +39,7 @@ typedef enum {
   CMD_READ_DI = 0x12,
   CMD_READ_RELAY = 0x13,
   CMD_SET_RELAY = 0x14,
+  CMD_READ_LORA_VER = 0x15,
   CMD_ERROR = 0xFF
 } CommandType;
 
@@ -54,6 +55,7 @@ void ReturnError(ErrorCode errorCode);
 void ReturnADCValue(void);
 void ReturnDIValue(void);
 void ReturnRelayValue(void);
+void ReturnLoRaVersion(void);
 void SetRelayValue(void);
 void initADC(void);
 uint16_t ReadADCChannel(uint8_t channel);
@@ -126,6 +128,9 @@ void loop()
         case CMD_SET_RELAY:
           SetRelayValue();
           break;
+        case CMD_READ_LORA_VER:
+          ReturnLoRaVersion();
+          break;
         default:
           ReturnError(ERROR_INVALID_CMD);
           break;
@@ -155,6 +160,7 @@ void LoRaInit(void)
   }
 
   Serial.println("Version:" + LoRa.getVersion());
+
   Serial.flush();
 
   if(LoRa.setLoRaMode(RAK3172_MODE_LORAP2P))
@@ -343,6 +349,37 @@ void ReturnRelayValue(void)
     Serial.flush();
   }
 
+}
+
+
+
+void ReturnLoRaVersion(void)
+{
+  String firmwareVersion = LoRa.getVersion();
+  Serial.println("LoRa Version: " + firmwareVersion);
+
+    // Намиране на индекси за разделителите
+    int firstUnderscore = firmwareVersion.indexOf('_');
+    int firstDot = firmwareVersion.indexOf('.', firstUnderscore);
+    int secondDot = firmwareVersion.indexOf('.', firstDot + 1);
+    
+    // Извличане на числата
+    uint8_t major = firmwareVersion.substring(firstUnderscore + 1, firstDot).toInt();
+    uint8_t minor = firmwareVersion.substring(firstDot + 1, secondDot).toInt();
+    uint8_t patch = firmwareVersion.substring(secondDot + 1, firmwareVersion.indexOf('_', secondDot)).toInt();
+
+    uint8_t versionValues[]={SLAVE_ADDRESS, MASTER_ADDRESS, CMD_READ_LORA_VER, major, minor, patch};
+
+    if(SendMsg(versionValues, sizeof(versionValues)))
+    {
+      Serial.println("LoRa Version Values Sent");
+      Serial.flush();
+    }
+    else
+    {
+      Serial.println("LoRa Version Values Failed to Send");
+      Serial.flush();
+    }
 }
 
 void SetRelayValue(void)
