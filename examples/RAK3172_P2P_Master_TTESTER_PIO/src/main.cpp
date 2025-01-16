@@ -147,7 +147,7 @@ void setup()
 
 void loop() 
 {
-  // readRemoteADC(SLAVE_ADDRESS);
+   readRemoteADC(SLAVE_ADDRESS);
   // readLocalADCVoltage();
   // readLocalADCCurrent();
 
@@ -169,11 +169,11 @@ void loop()
   // setLocalRelay(0x00);
 
   // Serial.println("====================================================");
-  // delay(2000);
+   delay(1000);
 
 
 
-  readUartCmd();
+  //readUartCmd();
 
 }
 
