@@ -12,6 +12,8 @@
 
 #include <Adafruit_MCP23X17.h>
 
+#include <Ethernet.h>
+
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
@@ -74,6 +76,7 @@ void InitDisplay(void);
 void createledtask(void);
 void InitRelay(void);
 void SetRelay(uint8_t relay, uint8_t state);
+void InitEthernet(void);
 
 
 typedef enum {
@@ -95,6 +98,17 @@ uint8_t Relays[13] = {3,2,1,0,7,6,5,4,10,9,8,12,11};
 uint8_t RelayCount = 13;
 
 
+// W5500 pins.
+#define W5500ResetPin 15  
+#define W5500CSPin    33 
+#define W5500Int      5 
+
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+};
+
+
+
 
 void setup() 
 {
@@ -109,10 +123,7 @@ void setup()
 
   InitRelay();
 
-  
-
-  mcp_relay.pinMode(0, OUTPUT);
-  mcp_relay.digitalWrite(0, LOW);
+  InitEthernet();
 
   delay(100);
 
@@ -380,4 +391,25 @@ void SetRelay(uint8_t relay, uint8_t state)
     state == HIGH  ? pixel.SetPixelColor(RelayLed[relay], RgbColor(50, 0, 0)) : pixel.SetPixelColor(RelayLed[relay], RgbColor(0, 50, 0));
     pixel.Show();
   }
+}
+
+void InitEthernet(void)
+{
+	// W5500 pin init.
+	pinMode(W5500ResetPin, OUTPUT);
+
+	digitalWrite(W5500ResetPin, LOW);
+	delay(600);
+	digitalWrite(W5500ResetPin, HIGH);
+	Ethernet.init(W5500CSPin);
+  if(Ethernet.begin(mac) == 0)
+  {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    // no point in carrying on, so do nothing forevermore:
+  }
+
+  Serial.println("Ethernet configured via DHCP");
+  Serial.print("IP address: ");
+  Serial.println(Ethernet.localIP()); 
+  Serial.flush();
 }
