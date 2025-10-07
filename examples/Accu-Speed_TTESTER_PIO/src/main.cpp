@@ -10,6 +10,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include <Adafruit_MCP23X17.h>
+
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
@@ -32,8 +34,7 @@ RAK3172 LoRa(false); //false for normal mode
 Adafruit_ADS1015 ADS1;     /* Use this for the 12-bit version */
 Adafruit_ADS1015 ADS2;     /* Use this for the 12-bit version */
 
-// #define SDA 14
-// #define SCL 13
+Adafruit_MCP23X17 mcp_relay;
 
 uint32_t frequency = 868000000;
 uint8_t sf = 7;
@@ -70,6 +71,9 @@ void readLocalADCVoltage(void);
 uint16_t adctomv(uint16_t adc);
 uint16_t adctoua(uint16_t adc);
 void InitDisplay(void);
+void createledtask(void);
+void InitRelay(void);
+void SetRelay(uint8_t relay, uint8_t state);
 
 
 typedef enum {
@@ -86,6 +90,10 @@ float referenceVoltage;  // ADC reference voltage
 int adcResolution;       // ADC resolution
 float resistorValue;     //Shunt resistor value in Ohms
 
+uint8_t RelayLed[13] = {15,14,13,12,19,18,17,16,24,23,22,21,20};
+uint8_t Relays[13] = {3,2,1,0,7,6,5,4,10,9,8,12,11};
+uint8_t RelayCount = 13;
+
 
 
 void setup() 
@@ -97,50 +105,38 @@ void setup()
 
   I2C2.begin(SDA2, SCL2);
 
+  mcp_relay.begin_I2C(0x21, &I2C2);  
+
+  InitRelay();
+
+  
+
+  mcp_relay.pinMode(0, OUTPUT);
+  mcp_relay.digitalWrite(0, LOW);
+
   delay(100);
 
   LoRaInit();
   initADC();
   InitDisplay();
 
-  //create led task
-  xTaskCreate(
-    [](void*){
-      for(;;)
-      {
-        for (uint16_t i = 0; i < PixelCount; i++)
-        {
-            pixel.SetPixelColor(i, RgbColor(0, 0, 100));
-            pixel.Show();
-            delay(50);
-        }
-        delay(500);
-        for (uint16_t i = 0; i < PixelCount; i++)
-        {
-            pixel.SetPixelColor(i, RgbColor(0, 100, 0));
-            pixel.Show();
-            delay(50);
-        }
-        delay(500);
-                for (uint16_t i = 0; i < PixelCount; i++)
-        {
-            pixel.SetPixelColor(i, RgbColor(100, 0, 0));
-            pixel.Show();
-            delay(50);
-        }
-        delay(500);
-      }
-    },
-    "LED_Task",
-    2048,
-    NULL,
-    1,
-    NULL
-  );  
+  //createledtask();
+
+  for (size_t i = 0; i < RelayCount; i++)
+  {
+    SetRelay(i, HIGH);
+    delay(200);
+    SetRelay(i, LOW);
+    delay(200);
+  }
+  
 }
 
 void loop() 
 {
+
+  
+
   readLocalADCVoltage();
  
   Serial.println("============");
@@ -318,4 +314,70 @@ void InitDisplay(void)
     display.println("Testing...");
     display.display();
     delay(2);
+}
+
+void createledtask(void)
+{
+  //create led task
+  xTaskCreate(
+    [](void*){
+      for(;;)
+      {
+        for (uint16_t i = 0; i < PixelCount; i++)
+        {
+            pixel.SetPixelColor(i, RgbColor(0, 0, 100));
+            pixel.Show();
+            delay(50);
+        }
+        delay(500);
+        for (uint16_t i = 0; i < PixelCount; i++)
+        {
+            pixel.SetPixelColor(i, RgbColor(0, 100, 0));
+            pixel.Show();
+            delay(50);
+        }
+        delay(500);
+                for (uint16_t i = 0; i < PixelCount; i++)
+        {
+            pixel.SetPixelColor(i, RgbColor(100, 0, 0));
+            pixel.Show();
+            delay(50);
+        }
+        delay(500);
+      }
+    },
+    "LED_Task",
+    2048,
+    NULL,
+    1,
+    NULL
+  );  
+}
+
+
+void InitRelay(void)
+{
+  for (int i = 0; i < 13; i++)
+  {
+    mcp_relay.pinMode(i, OUTPUT);
+    mcp_relay.digitalWrite(i, LOW);
+  }
+
+  for (size_t i = 0; i < sizeof(RelayLed); i++)
+  {
+    pixel.SetPixelColor(RelayLed[i], RgbColor(0, 50, 0));
+    pixel.Show();
+    delay(100);
+  }
+  
+}
+
+void SetRelay(uint8_t relay, uint8_t state)
+{
+  if(relay < 13)
+  {
+    mcp_relay.digitalWrite(relay, state);
+    state == HIGH  ? pixel.SetPixelColor(RelayLed[relay], RgbColor(50, 0, 0)) : pixel.SetPixelColor(RelayLed[relay], RgbColor(0, 50, 0));
+    pixel.Show();
+  }
 }
