@@ -36,7 +36,9 @@ RAK3172 LoRa(false); //false for normal mode
 Adafruit_ADS1015 ADS1;     /* Use this for the 12-bit version */
 Adafruit_ADS1015 ADS2;     /* Use this for the 12-bit version */
 
-Adafruit_MCP23X17 mcp_relay;
+Adafruit_MCP23X17 mcp_2;
+Adafruit_MCP23X17 mcp_1;
+Adafruit_MCP23X17 mcp_0;
 
 uint32_t frequency = 868000000;
 uint8_t sf = 7;
@@ -77,6 +79,8 @@ void createledtask(void);
 void InitRelay(void);
 void SetRelay(uint8_t relay, uint8_t state);
 void InitEthernet(void);
+void InitRS485(void);
+void initDIO(void);
 
 
 typedef enum {
@@ -108,7 +112,18 @@ byte mac[] = {
 };
 
 
+//RS485
+#define RS1DE 12
+#define RS1TX 32
+#define RS1RX 36
 
+#define RS2DE 2
+#define RS2TX 16
+#define RS2RX 39
+
+#define RS3DE 4
+#define RS3TX 17
+#define RS3RX 34
 
 void setup() 
 {
@@ -119,11 +134,13 @@ void setup()
 
   I2C2.begin(SDA2, SCL2);
 
-  mcp_relay.begin_I2C(0x21, &I2C2);  
+  mcp_0.begin_I2C(0x20, &I2C2);
+  mcp_1.begin_I2C(0x21, &I2C2);  
+  mcp_2.begin_I2C(0x22, &I2C2);
 
   InitRelay();
 
-  InitEthernet();
+  //InitEthernet();
 
   delay(100);
 
@@ -133,13 +150,16 @@ void setup()
 
   //createledtask();
 
-  for (size_t i = 0; i < RelayCount; i++)
-  {
-    SetRelay(i, HIGH);
-    delay(200);
-    SetRelay(i, LOW);
-    delay(200);
-  }
+  // for (size_t i = 0; i < RelayCount; i++)
+  // {
+  //   SetRelay(i, HIGH);
+  //   delay(200);
+  //   SetRelay(i, LOW);
+  //   delay(200);
+  // }
+
+  //InitRS485();
+  initDIO();
   
 }
 
@@ -365,13 +385,12 @@ void createledtask(void)
   );  
 }
 
-
 void InitRelay(void)
 {
   for (int i = 0; i < 13; i++)
   {
-    mcp_relay.pinMode(i, OUTPUT);
-    mcp_relay.digitalWrite(i, LOW);
+    mcp_1.pinMode(i, OUTPUT);
+    mcp_1.digitalWrite(i, LOW);
   }
 
   for (size_t i = 0; i < sizeof(RelayLed); i++)
@@ -387,7 +406,7 @@ void SetRelay(uint8_t relay, uint8_t state)
 {
   if(relay < 13)
   {
-    mcp_relay.digitalWrite(relay, state);
+    mcp_1.digitalWrite(relay, state);
     state == HIGH  ? pixel.SetPixelColor(RelayLed[relay], RgbColor(50, 0, 0)) : pixel.SetPixelColor(RelayLed[relay], RgbColor(0, 50, 0));
     pixel.Show();
   }
@@ -413,3 +432,116 @@ void InitEthernet(void)
   Serial.println(Ethernet.localIP()); 
   Serial.flush();
 }
+
+void InitRS485(void)
+{
+  pinMode(RS1DE, OUTPUT);
+  pinMode(RS2DE, OUTPUT);
+  pinMode(RS3DE, OUTPUT);
+
+  digitalWrite(RS1DE, LOW);
+  digitalWrite(RS2DE, LOW);
+  digitalWrite(RS3DE, LOW);
+
+  Serial1.begin(9600, SERIAL_8N1, RS1RX, RS1TX);
+
+  uint32_t count = 0;
+
+  do
+  {
+    digitalWrite(RS1DE, HIGH); //Enable RS485 Transmit
+    delay(10);
+    Serial1.println("Serial1");
+    Serial1.flush();
+    digitalWrite(RS1DE, LOW); //Disable RS485 Transmit
+    if(Serial1.available())
+    {
+      String rcv = Serial1.readStringUntil('\n');
+      Serial.println("Received from RS485: " + rcv);
+      Serial.flush();
+    }
+
+    delay(100);
+    count++;
+  } while (count < 50);
+
+  Serial1.end();
+
+  Serial1.begin(9600, SERIAL_8N1, RS2RX, RS2TX);
+  count = 0;
+  
+  do
+  {
+    digitalWrite(RS2DE, HIGH); //Enable RS485 Transmit
+    delay(10);
+    Serial1.println("Serial2");
+    Serial1.flush();
+    digitalWrite(RS2DE, LOW); //Disable RS485 Transmit
+    if(Serial1.available())
+    {
+      String rcv = Serial1.readStringUntil('\n');
+      Serial.println("Received from RS485: " + rcv);
+      Serial.flush();
+    }
+
+    delay(100);
+    count++;
+  } while (count < 50);
+
+  Serial1.end();
+
+
+
+  Serial1.begin(9600, SERIAL_8N1, RS3RX, RS3TX);
+  count = 0;
+  
+  do
+  {
+    digitalWrite(RS3DE, HIGH); //Enable RS485 Transmit
+    delay(10);
+    Serial1.println("Serial3");
+    Serial1.flush();
+    digitalWrite(RS3DE, LOW); //Disable RS485 Transmit
+    if(Serial1.available())
+    {
+      String rcv = Serial1.readStringUntil('\n');
+      Serial.println("Received from RS485: " + rcv);
+      Serial.flush();
+    }
+
+    delay(100);
+    count++;
+  } while (count < 50);
+
+  Serial1.end();
+}
+
+void initDIO(void)
+{
+  for (int i = 0; i < 16; i++)
+  {
+    mcp_0.pinMode(i, INPUT);
+  }
+
+  mcp_0.pinMode(15, OUTPUT);
+
+  do
+  {
+    for (int i = 0; i < 16; i++)
+    {
+      Serial.print("DI" + String(i) + ":");
+      mcp_0.digitalRead(i) == HIGH ? Serial.print("HIGH ") : Serial.print("LOW ");
+      delay(1);
+    }
+    Serial.println("----");
+    Serial.flush();
+    mcp_0.digitalWrite(15, HIGH);
+    delay(500);
+    mcp_0.digitalWrite(15, LOW);
+    delay(500);
+  } while (1);
+  
+
+  
+}
+
