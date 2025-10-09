@@ -24,7 +24,7 @@ TwoWire I2C2 = TwoWire(0);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &I2C2);
 
 
-const uint16_t PixelCount = 28; // make sure to set this to the number of pixels in your strip
+const uint16_t PixelCount = 33; // make sure to set this to the number of pixels in your strip
 const uint8_t PixelPin = 0;  // make sure to set this to the correct pin, ignored for Esp8266
 
 NeoPixelBus<NeoGrbFeature, NeoEsp32BitBang800KbpsMethod> pixel(PixelCount, PixelPin);
@@ -81,6 +81,7 @@ void SetRelay(uint8_t relay, uint8_t state);
 void InitEthernet(void);
 void InitRS485(void);
 void initDIO(void);
+void initButtons(void);
 
 
 typedef enum {
@@ -148,7 +149,7 @@ void setup()
   initADC();
   InitDisplay();
 
-  //createledtask();
+  createledtask();
 
   // for (size_t i = 0; i < RelayCount; i++)
   // {
@@ -159,7 +160,8 @@ void setup()
   // }
 
   //InitRS485();
-  initDIO();
+  //initDIO();
+  //initButtons();
   
 }
 
@@ -535,13 +537,36 @@ void initDIO(void)
     }
     Serial.println("----");
     Serial.flush();
-    mcp_0.digitalWrite(15, HIGH);
-    delay(500);
-    mcp_0.digitalWrite(15, LOW);
-    delay(500);
+    // mcp_0.digitalWrite(15, HIGH);
+    // delay(500);
+    // mcp_0.digitalWrite(15, LOW);
+    // delay(500);
+    delay(100);
   } while (1);
   
 
+  
+}
+
+void initButtons(void)
+{
+  for (int i = 0; i < 16; i++)
+  {
+    mcp_2.pinMode(i, INPUT);
+  }
+
+  do
+  {
+    for (int i = 0; i < 16; i++)
+    {
+      Serial.print("DI" + String(i) + ":");
+      mcp_2.digitalRead(i) == HIGH ? Serial.print("HIGH ") : Serial.print("LOW ");
+      delay(1);
+    }
+    Serial.println("----");
+    Serial.flush();
+    delay(100);
+  } while (1);
   
 }
 
