@@ -143,13 +143,13 @@ void setup()
 
   //InitEthernet();
 
-  delay(100);
+  //delay(100);
 
   LoRaInit();
   initADC();
   InitDisplay();
 
-  createledtask();
+  
 
   // for (size_t i = 0; i < RelayCount; i++)
   // {
@@ -159,8 +159,11 @@ void setup()
   //   delay(200);
   // }
 
+  // delay(200);
+  // createledtask();
+
   //InitRS485();
-  //initDIO();
+  initDIO();
   //initButtons();
   
 }
@@ -459,7 +462,7 @@ void InitRS485(void)
     if(Serial1.available())
     {
       String rcv = Serial1.readStringUntil('\n');
-      Serial.println("Received from RS485: " + rcv);
+      Serial.println("Received from RS485-1: " + rcv);
       Serial.flush();
     }
 
@@ -482,7 +485,7 @@ void InitRS485(void)
     if(Serial1.available())
     {
       String rcv = Serial1.readStringUntil('\n');
-      Serial.println("Received from RS485: " + rcv);
+      Serial.println("Received from RS485-2: " + rcv);
       Serial.flush();
     }
 
@@ -507,7 +510,7 @@ void InitRS485(void)
     if(Serial1.available())
     {
       String rcv = Serial1.readStringUntil('\n');
-      Serial.println("Received from RS485: " + rcv);
+      Serial.println("Received from RS485-3: " + rcv);
       Serial.flush();
     }
 
@@ -537,11 +540,10 @@ void initDIO(void)
     }
     Serial.println("----");
     Serial.flush();
-    // mcp_0.digitalWrite(15, HIGH);
-    // delay(500);
-    // mcp_0.digitalWrite(15, LOW);
-    // delay(500);
-    delay(100);
+    mcp_0.digitalWrite(15, HIGH);
+    delay(300);
+    mcp_0.digitalWrite(15, LOW);
+    //delay(100);
   } while (1);
   
 
