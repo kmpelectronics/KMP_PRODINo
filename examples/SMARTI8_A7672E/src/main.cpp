@@ -1,6 +1,13 @@
 #include <Arduino.h>
 #include "KMPCommon.h"
 #include "KMPSmarti8ESP32.h"
+#include <Adafruit_ADS1X15.h>
+
+
+Adafruit_ADS1015 ADS1;     /* Use this for the 12-bit version */
+
+#define SDA 21
+#define SCL 22
 
 //GSM
 #define TINY_GSM_MODEM_A7672X
@@ -85,11 +92,19 @@ const int      port = 80;
 KMPSmarti8ESP32Class board;
 
 //prototype functions
-void readLocalDI(void);
-void readLocalRelay(void);
-void setLocalRelay(uint8_t state);
 void initBoard(void);
 void initGSM(void);
+bool sendSMS(const char* number, const String& text);
+bool sendIOStatusSMS(const char* number);
+
+void initADC(void);
+void readLocalADCVoltage(void);
+uint16_t adctomv(uint16_t adc);
+
+float scaleFactor;       // (R1 + R2) / R2
+float referenceVoltage;  // ADC reference voltage
+int adcResolution;       // ADC resolution
+float resistorValue;     //Shunt resistor value in Ohms
 
 void setup() 
 {
@@ -101,47 +116,26 @@ void setup()
 
   initGSM();
 
+  initADC();
 
 
 }
 
 void loop() 
 {
-
-
-}
-
-void readLocalDI(void)
-{
-  Serial.print("Local DI: ");
-  for(int i = 0; i < DI_COUNT; i++)
+  //check input 7 status and send sendIOStatusSMS
+  static bool lastDI7State = false;
+  bool currentDI7State = board.getOptoInState(7);
+  if(currentDI7State != lastDI7State)
   {
-    Serial.print("DI" + String(i) + ":" + String(board.getOptoInState(i)) + " ");
-  }
-  Serial.println();
-  Serial.flush();
-}
+    lastDI7State = currentDI7State;
+    sendIOStatusSMS(SMS_TARGET);
+  } 
 
-void readLocalRelay(void)
-{
-  Serial.print("Local RELAY: ");
-  for(int i = 0; i < RELAY_COUNT; i++)
-  {
-    Serial.print("RELAY" + String(i) + ":" + String(board.getRelayState(i)) + " ");
-  }
-  Serial.println();
-  Serial.flush();
-}
+  readLocalADCVoltage();
 
-void setLocalRelay(uint8_t state)
-{
+  delay(500);
 
-  for(int i = 0; i < RELAY_COUNT; i++)
-  {
-    board.setRelayState(i, state&1<<i);
-  }
-  Serial.println("Local Relays set successfully");
-  Serial.flush();
 
 }
 
@@ -213,10 +207,84 @@ void initGSM(void)
     }
   }
 
-  bool res = modem.sendSMS(SMS_TARGET, String("Hello from ") + modemInfo);
-  DBG("SMS:", res ? "OK" : "fail");
-
+  sendIOStatusSMS(SMS_TARGET);
   
+}
 
 
+// Send SMS with custom text
+bool sendSMS(const char* number, const String& text)
+{
+  bool res = modem.sendSMS(number, text);
+  DBG("SMS to " + String(number) + ":", res ? "OK" : "fail");
+  return res;
+}
+
+
+// Send SMS with DI and RELAY status
+bool sendIOStatusSMS(const char* number)
+{
+  String smsText = "DI Status: ";
+  for(int i = 0; i < DI_COUNT; i++)
+  {
+    smsText += "DI" + String(i) + ":" + String(board.getOptoInState(i)) + " ";
+  }
+  smsText += "\nPower State: ";
+  if(board.getOptoInState(7))
+  {
+    smsText += "ON\n";
+  }
+  else
+  {
+    smsText += "OFF\n";
+  }
+
+  return sendSMS(number, smsText);
+}
+
+
+void readLocalADCVoltage(void)
+{
+  Serial.print("Analog In Voltage: ");
+  for(int i = 0; i < 4; i++)
+  {
+    uint16_t tADCvalue = ADS1.readADC_SingleEnded(i);
+    Serial.print("AI" + String(i) + ":" + String(adctomv(tADCvalue)) + "mV ");
+  }
+  Serial.println();
+  Serial.flush();
+}
+
+void initADC(void)
+{
+  Wire.begin(SDA,SCL);
+
+ if(ADS1.begin(0x48))//4A
+  {
+
+    scaleFactor = 50.2 / 20.0;  // (R1 + R2) / R2
+    referenceVoltage = 2048.0;  // Reference voltage in mV
+    adcResolution = 2048;       // resolution 11-bit
+    resistorValue = 100;        //Shunt resistor value in Ohms
+
+    ADS1.setGain(GAIN_TWO);
+
+    Serial.println("ADC_HW_V3 init OK");
+  }
+  else
+  {
+    
+    while (1)
+    {
+      Serial.println("ADC not initialized");
+      delay(1000);
+    }
+    
+  }
+
+}
+
+uint16_t adctomv(uint16_t adc)
+{
+  return (adc * referenceVoltage / adcResolution) * scaleFactor;
 }
