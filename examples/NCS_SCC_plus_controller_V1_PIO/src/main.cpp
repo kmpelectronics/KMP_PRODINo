@@ -18,11 +18,6 @@
 
 #include "SC16IS7X0.h"
 
-#include <SPI.h>
-#include <L9822E.h>
-
-
-
 constexpr uint32_t CRYSTAL_FREQ = 14745600;
 constexpr uint32_t UART_BAUD = 115200;
 constexpr uint8_t UART_RESET = 47;
@@ -155,6 +150,7 @@ void setup() {
   pixel.Show();
 
   Wire.setPins(SDA1, SCL1);
+  //I2C1.begin(SDA1, SCL1);
   I2C2.begin(SDA2, SCL2);
 
 
@@ -164,12 +160,13 @@ void setup() {
 
   
 
-  // initUart();
-  // createledtask();
+  initUart();
+  //delay(100);
+  //createledtask();
   // InitEthernet();
   // LoRaInit();
   // initADC();
-  // InitDisplay();
+   InitDisplay();
   // ds18b20Test();
 
     
