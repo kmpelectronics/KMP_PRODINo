@@ -18,6 +18,23 @@
 
 #include "SC16IS7X0.h"
 
+#include <SPI.h>
+#include <L9822E.h>
+
+// RESET - GPIO36
+// CE    - GPIO35
+// SI    - GPIO37 (MOSI)
+// SO    - GPIO38 (MISO)
+// CLK   - GPIO48 (SCK)
+
+static constexpr int DRV_RESET = 36;
+static constexpr int DRV_CE    = 35;
+static constexpr int DRV_MOSI  = 37;
+static constexpr int DRV_MISO  = 38;
+static constexpr int DRV_SCK   = 48;
+
+L9822EChain Driver(2, DRV_CE, DRV_RESET);
+
 constexpr uint32_t CRYSTAL_FREQ = 14745600;
 constexpr uint32_t UART_BAUD = 115200;
 constexpr uint8_t UART_RESET = 47;
@@ -134,8 +151,9 @@ void InitEthernet(void);
 void LoRaInit(void);
 void InitDisplay(void);
 void initADC(void);
-void ds18b20Test(void);
+void Initds18b20(void);
 void initUart(void);
+void InitL9822E(void);
 
 
 
@@ -157,17 +175,16 @@ void setup() {
   mcp_0.begin_I2C(0x20, &I2C2);
   mcp_1.begin_I2C(0x21, &I2C2);  
 
-
+  InitL9822E();
   
-
-  initUart();
+  //initUart();
   //delay(100);
   //createledtask();
-  // InitEthernet();
-  // LoRaInit();
-  // initADC();
-   InitDisplay();
-  // ds18b20Test();
+  //InitEthernet();
+  //LoRaInit();
+  //initADC();
+  //InitDisplay();
+  //Initds18b20();
 
     
   
@@ -388,7 +405,7 @@ void initADC(void)
 
 }
 
-void ds18b20Test(void) {
+void Initds18b20(void) {
   byte i;
   byte present = 0;
   byte type_s;
@@ -497,8 +514,6 @@ void ds18b20Test(void) {
   
   
 }
-
-
 
 void initUart(void)
 {
@@ -717,4 +732,41 @@ void initUart(void)
 
 } 
 
+void InitL9822E(void)
+{
+  SPI.begin(DRV_SCK, DRV_MISO, DRV_MOSI);
+  Driver.begin(SPI, 1000000); // 1 MHz (до 2 MHz по datasheet)
 
+  for (size_t i = 0; i < 8; i++)
+  {
+    Driver.setChannel(0, i, true);
+    Driver.write();
+    delay(100);
+  }
+
+  delay(500);
+
+  for (size_t i = 0; i < 8; i++)
+  {
+    Driver.setChannel(0, i, false);
+    Driver.write();
+    delay(100);
+  }
+
+  for (size_t i = 0; i < 8; i++)
+  {
+    Driver.setChannel(1, i, true);
+    Driver.write();
+    delay(100);
+  }
+  
+  delay(500);
+  
+  for (size_t i = 0; i < 8; i++)
+  {
+    Driver.setChannel(1, i, false);
+    Driver.write();
+    delay(100);
+  }
+
+} 
