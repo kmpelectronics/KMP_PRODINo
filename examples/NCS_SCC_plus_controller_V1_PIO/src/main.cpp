@@ -35,6 +35,8 @@ static constexpr int DRV_SCK   = 48;
 
 L9822EChain Driver(2, DRV_CE, DRV_RESET);
 
+SPIClass spiL9822(HSPI);
+
 constexpr uint32_t CRYSTAL_FREQ = 14745600;
 constexpr uint32_t UART_BAUD = 115200;
 constexpr uint8_t UART_RESET = 47;
@@ -144,6 +146,12 @@ byte mac[] = {
   0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 };
 
+//Solid state relays pins definition
+#define SSR0_PIN 6
+#define SSR1_PIN 7
+#define SSR2_PIN 15
+#define SSR3_PIN 16
+
 
 // Function Prototypes
 void createledtask(void);
@@ -154,8 +162,13 @@ void initADC(void);
 void Initds18b20(void);
 void initUart(void);
 void InitL9822E(void);
-
-
+void PrintAllAIChannels(void);
+uint16_t adctomv(uint16_t adc);
+void PrintAIChannel(uint8_t channel);
+uint16_t ReadAIChanelmV(uint8_t channel);
+bool CheckValueDeviation(uint16_t value1, uint16_t value2, uint8_t percent);
+void initDIO(void);
+void PrintAllDIOStates(void);
 
 
 void setup() {
@@ -175,19 +188,17 @@ void setup() {
   mcp_0.begin_I2C(0x20, &I2C2);
   mcp_1.begin_I2C(0x21, &I2C2);  
 
-  InitL9822E();
-  
-  //initUart();
-  //delay(100);
-  //createledtask();
-  //InitEthernet();
-  //LoRaInit();
-  //initADC();
-  //InitDisplay();
-  //Initds18b20();
+  // LoRaInit();
+  // InitEthernet();
+  // InitDisplay();
+  // createledtask();
+  // initADC();
+  // InitL9822E();
+  // initUart();
+  // Initds18b20();
+  initDIO();
 
-    
-  
+  //delay(100);
   //InitRelay();
 
   // for (size_t i = 0; i < RelayCount; i++)
@@ -202,7 +213,7 @@ void setup() {
   // createledtask();
 
   //InitRS485();
-  //initDIO();
+  //
   //initButtons();
 }
 
@@ -250,6 +261,9 @@ void createledtask(void)
 
 void InitEthernet(void)
 {
+
+  bool test_result = true;
+
 	// W5500 pin init.
 	pinMode(W5500ResetPin, OUTPUT);
 
@@ -260,30 +274,47 @@ void InitEthernet(void)
   if(Ethernet.begin(mac) == 0)
   {
     Serial.println("Failed to configure Ethernet using DHCP");
+    Serial.flush();
+    test_result = false;
     // no point in carrying on, so do nothing forevermore:
   }
 
-  Serial.println("Ethernet configured via DHCP");
-  Serial.print("IP address: ");
-  Serial.println(Ethernet.localIP()); 
-  Serial.flush();
+  //Serial.println("Ethernet configured via DHCP");
+  //Serial.print("IP address: ");
+  //Serial.println(Ethernet.localIP()); 
+  //Serial.flush();
+
+  if(test_result)
+  {
+    Serial.println("Ethernet test Passed ");
+    Serial.flush();
+  }
+  else
+  {
+    Serial.println("Ethernet test Failed==============================================================================!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    Serial.flush();
+  }
+
 }
 
 void LoRaInit(void)
 {
-   Serial.println("Starting RAK3172");
-   Serial.flush();
+  bool test_result = true;
+
+  Serial.println("Starting RAK3172 test...");
+  Serial.flush();
 
   if(LoRa.begin(Lora_rx, Lora_tx, Lora_rst))
   {
-    Serial.println("RAK3172 Init success!");
-    Serial.flush();
+    // Serial.println("RAK3172 Init success!");
+    // Serial.flush();
     
   }
   else
   {
     Serial.println("RAK3172 Init failed!");
     Serial.flush();
+    test_result = false;
   }
 
   Serial.println("Version:" + LoRa.getVersion());
@@ -291,63 +322,80 @@ void LoRaInit(void)
 
   if(LoRa.setLoRaMode(RAK3172_MODE_LORAP2P))
   {
-	  Serial.println("LoRa Mode set to LoRaP2P Sucssefully");
-    Serial.flush();
+	  // Serial.println("LoRa Mode set to LoRaP2P Sucssefully");
+    // Serial.flush();
   }
   else
   {
     Serial.println("LoRa Mode set to LoRaP2P Failed");
     Serial.flush();
+    test_result = false;
   }
 
   if(LoRa.setLoRaP2PParameters(frequency, sf, bw, cr, prlen, pwr))
   {
-    Serial.println("LoRa P2P Parameters set successfully");
-    Serial.flush();
+    // Serial.println("LoRa P2P Parameters set successfully");
+    // Serial.flush();
   }
   else
   {
     Serial.println("LoRa P2P Parameters set failed");
     Serial.flush();
+    test_result = false;
   }
 
   if(LoRa.getLoRaP2PParameters(&frequency, &sf, &bw, &cr, &prlen, &pwr))
   {
-    Serial.println("LoRa P2P Parameters:");
-    Serial.println("Frequency: " + String(frequency));
-    Serial.println("SF: " + String(sf));
-    Serial.println("BW: " + String(bw));
-    Serial.println("CR: " + String(cr));
-    Serial.println("PRLen: " + String(prlen));
-    Serial.println("PWR: " + String(pwr));
-    Serial.flush();
+    // Serial.println("LoRa P2P Parameters:");
+    // Serial.println("Frequency: " + String(frequency));
+    // Serial.println("SF: " + String(sf));
+    // Serial.println("BW: " + String(bw));
+    // Serial.println("CR: " + String(cr));
+    // Serial.println("PRLen: " + String(prlen));
+    // Serial.println("PWR: " + String(pwr));
+    // Serial.flush();
   }
   else
   {
     Serial.println("LoRa P2P Parameters failed!");
     Serial.flush();
+    test_result = false;
   }
 
   if(LoRa.setReceiveMode(RAK3172_TX_MODE))
   {
-    Serial.println("LoRa set to TX Mode");
-    Serial.flush();
+    // Serial.println("LoRa set to TX Mode");
+    // Serial.flush();
   }
   else
   {
     Serial.println("LoRa set to TX Mode failed");
+    Serial.flush();
+    test_result = false;
+  }
+
+  if(test_result)
+  {
+    Serial.println("RAK3172 test Passed ");
+    Serial.flush();
+  }
+  else
+  {
+    Serial.println("RAK3172 test Failed==============================================================================!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     Serial.flush();
   }
 }
 
 void InitDisplay(void)
 {
+  bool test_result = true;
     
     delay(1);
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
-        Serial.println(F("display allocation failed"));
-        for (;;); // Don't proceed, loop forever
+        Serial.println(F("SSD1306 allocation failed"));
+        Serial.flush();
+        test_result = false;
     }
     display.setRotation(1);
     display.clearDisplay();
@@ -360,6 +408,17 @@ void InitDisplay(void)
     display.println(Ethernet.localIP());
     display.display();
     delay(2);
+
+  if(test_result)
+  {
+    Serial.println("Display test Passed ");
+    Serial.flush();
+  }
+  else
+  {
+    Serial.println("Display test Failed==============================================================================!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    Serial.flush();
+  }
 }
 
 void initADC(void)
@@ -524,9 +583,11 @@ void initUart(void)
   digitalWrite(UART_RESET, HIGH);
   delay(100);
 
+  bool test_result = true;
+
   if (I2CUART1.begin_I2C(I2CUART1_ADD))
   {
-    Serial.println("I2C UART1 init success");
+    //Serial.println("I2C UART1 init success");
     I2CUART1.disableTCR_TLR();
     I2CUART1.enableAutors485();
     I2CUART1.begin_UART(UART_BAUD);
@@ -539,7 +600,7 @@ void initUart(void)
 
   if(I2CUART2.begin_I2C(I2CUART2_ADD))
   {
-    Serial.println("I2C UART2 init success");
+    //Serial.println("I2C UART2 init success");
     I2CUART2.disableTCR_TLR();
     I2CUART2.enableAutors485();
     I2CUART2.begin_UART(UART_BAUD);
@@ -552,7 +613,7 @@ void initUart(void)
 
   if(I2CUART3.begin_I2C(I2CUART3_ADD))
   {
-    Serial.println("I2C UART3 init success");
+    //Serial.println("I2C UART3 init success");
     I2CUART3.disableTCR_TLR();
     I2CUART3.enableAutors485();
     I2CUART3.begin_UART(UART_BAUD);
@@ -565,7 +626,7 @@ void initUart(void)
 
   if(I2CUART4.begin_I2C(I2CUART4_ADD))
   {
-    Serial.println("I2C UART4 init success");
+    //Serial.println("I2C UART4 init success");
     I2CUART4.disableTCR_TLR();
     I2CUART4.enableAutors485();
     I2CUART4.begin_UART(UART_BAUD);
@@ -578,7 +639,7 @@ void initUart(void)
 
   if(I2CUART5.begin_I2C(I2CUART5_ADD))
   {
-    Serial.println("I2C UART5 init success");
+    //Serial.println("I2C UART5 init success");
     I2CUART5.disableTCR_TLR();
     I2CUART5.enableAutors485();
     I2CUART5.begin_UART(UART_BAUD);
@@ -591,7 +652,7 @@ void initUart(void)
 
   if(I2CUART6.begin_I2C(I2CUART6_ADD))
   {
-    Serial.println("I2C UART6 init success");
+    //Serial.println("I2C UART6 init success");
     I2CUART6.disableTCR_TLR();
     I2CUART6.enableAutors485();
     I2CUART6.begin_UART(UART_BAUD);
@@ -604,169 +665,541 @@ void initUart(void)
 
   constexpr uint8_t test_loops = 3; //number of test loops
 
+  Serial.println("Starting UART test...");
+
   for(uint8_t i=0; i<test_loops; i++)
   {
     I2CUART1.printf("UART1 loop %d\n", i);
-    Serial.print("UART2 RX: ");
-    while (I2CUART2.available())
-      Serial.write(I2CUART2.read());
-    Serial.print("UART3 RX: ");
-    while (I2CUART3.available())
-      Serial.write(I2CUART3.read());
-    Serial.print("UART4 RX: ");
-    while (I2CUART4.available())
-      Serial.write(I2CUART4.read());
-    Serial.print("UART5 RX: ");
-    while (I2CUART5.available())
-      Serial.write(I2CUART5.read());
-    Serial.print("UART6 RX: ");
-    while (I2CUART6.available())
-      Serial.write(I2CUART6.read());
     delay(100);
+    if(I2CUART2.readStringUntil('\n') != String("UART1 loop " + String(i)))
+    {
+      Serial.println("UART1 to UART2 communication failed");
+      test_result = false;
+    }
+    if(I2CUART3.readStringUntil('\n') != String("UART1 loop " + String(i)))
+    {
+      Serial.println("UART1 to UART3 communication failed");
+      test_result = false;
+    }
+    if(I2CUART4.readStringUntil('\n') != String("UART1 loop " + String(i)))
+    {
+      Serial.println("UART1 to UART4 communication failed");
+      test_result = false;
+    }
+    if(I2CUART5.readStringUntil('\n') != String("UART1 loop " + String(i)))
+    {
+      Serial.println("UART1 to UART5 communication failed");
+      test_result = false;
+    }
+    if(I2CUART6.readStringUntil('\n') != String("UART1 loop " + String(i)))
+    {
+      Serial.println("UART1 to UART6 communication failed");
+      test_result = false;
+    }
   }
 
   for(uint8_t i=0; i<test_loops; i++)
   {
     I2CUART2.printf("UART2 loop %d\n", i);
-    Serial.print("UART1 RX: ");
-    while (I2CUART1.available())
-      Serial.write(I2CUART1.read());
-    Serial.print("UART3 RX: ");
-    while (I2CUART3.available())
-      Serial.write(I2CUART3.read());
-    Serial.print("UART4 RX: ");
-    while (I2CUART4.available())
-      Serial.write(I2CUART4.read());
-    Serial.print("UART5 RX: ");
-    while (I2CUART5.available())
-      Serial.write(I2CUART5.read());
-    Serial.print("UART6 RX: ");
-    while (I2CUART6.available())
-      Serial.write(I2CUART6.read());
     delay(100);
+    if(I2CUART1.readStringUntil('\n') != String("UART2 loop " + String(i)))
+    {
+      Serial.println("UART2 to UART1 communication failed");
+      test_result = false;
+    }
+    if(I2CUART3.readStringUntil('\n') != String("UART2 loop " + String(i)))
+    {
+      Serial.println("UART2 to UART3 communication failed");
+      test_result = false;
+    }
+    if(I2CUART4.readStringUntil('\n') != String("UART2 loop " + String(i)))
+    {
+      Serial.println("UART2 to UART4 communication failed");
+      test_result = false;
+    }
+    if(I2CUART5.readStringUntil('\n') != String("UART2 loop " + String(i)))
+    {
+      Serial.println("UART2 to UART5 communication failed");
+      test_result = false;
+    }
+    if(I2CUART6.readStringUntil('\n') != String("UART2 loop " + String(i)))
+    {
+      Serial.println("UART2 to UART6 communication failed");
+      test_result = false;
+    }
   }
 
   for(uint8_t i=0; i<test_loops; i++)
   {
     I2CUART3.printf("UART3 loop %d\n", i);
-    Serial.print("UART1 RX: ");
-    while (I2CUART1.available())
-      Serial.write(I2CUART1.read());
-    Serial.print("UART2 RX: ");
-    while (I2CUART2.available())
-      Serial.write(I2CUART2.read());
-    Serial.print("UART4 RX: ");
-    while (I2CUART4.available())
-      Serial.write(I2CUART4.read());
-    Serial.print("UART5 RX: ");
-    while (I2CUART5.available())
-      Serial.write(I2CUART5.read());
-    Serial.print("UART6 RX: ");
-    while (I2CUART6.available())
-      Serial.write(I2CUART6.read());
     delay(100);
+    if(I2CUART1.readStringUntil('\n') != String("UART3 loop " + String(i)))
+    {
+      Serial.println("UART3 to UART1 communication failed");
+      test_result = false;
+    }
+    if(I2CUART2.readStringUntil('\n') != String("UART3 loop " + String(i)))
+    {
+      Serial.println("UART3 to UART2 communication failed");
+      test_result = false;
+    }
+    if(I2CUART4.readStringUntil('\n') != String("UART3 loop " + String(i)))
+    {
+      Serial.println("UART3 to UART4 communication failed");
+      test_result = false;
+    }
+    if(I2CUART5.readStringUntil('\n') != String("UART3 loop " + String(i)))
+    {
+      Serial.println("UART3 to UART5 communication failed");
+      test_result = false;
+    }
+    if(I2CUART6.readStringUntil('\n') != String("UART3 loop " + String(i)))
+    {
+      Serial.println("UART3 to UART6 communication failed");
+      test_result = false;
+    }
   }
 
   for(uint8_t i=0; i<test_loops; i++)
   {
     I2CUART4.printf("UART4 loop %d\n", i);
-    Serial.print("UART1 RX: ");
-    while (I2CUART1.available())
-      Serial.write(I2CUART1.read());
-    Serial.print("UART2 RX: ");
-    while (I2CUART2.available())
-      Serial.write(I2CUART2.read());
-    Serial.print("UART3 RX: ");
-    while (I2CUART3.available())
-      Serial.write(I2CUART3.read());
-    Serial.print("UART5 RX: ");
-    while (I2CUART5.available())
-      Serial.write(I2CUART5.read());
-    Serial.print("UART6 RX: ");
-    while (I2CUART6.available())
-      Serial.write(I2CUART6.read());
     delay(100);
+    if(I2CUART1.readStringUntil('\n') != String("UART4 loop " + String(i)))
+    {
+      Serial.println("UART4 to UART1 communication failed");
+      test_result = false;
+    }
+    if(I2CUART2.readStringUntil('\n') != String("UART4 loop " + String(i)))
+    {
+      Serial.println("UART4 to UART2 communication failed");
+      test_result = false;
+    }
+    if(I2CUART3.readStringUntil('\n') != String("UART4 loop " + String(i)))
+    {
+      Serial.println("UART4 to UART3 communication failed");
+      test_result = false;
+    }
+    if(I2CUART5.readStringUntil('\n') != String("UART4 loop " + String(i)))
+    {
+      Serial.println("UART4 to UART5 communication failed");
+      test_result = false;
+    }
+    if(I2CUART6.readStringUntil('\n') != String("UART4 loop " + String(i)))
+    {
+      Serial.println("UART4 to UART6 communication failed");
+      test_result = false;
+    }
   }
 
   for(uint8_t i=0; i<test_loops; i++)
   {
     I2CUART5.printf("UART5 loop %d\n", i);
-    Serial.print("UART1 RX: ");
-    while (I2CUART1.available())
-      Serial.write(I2CUART1.read());
-    Serial.print("UART2 RX: ");
-    while (I2CUART2.available())
-      Serial.write(I2CUART2.read());
-    Serial.print("UART3 RX: ");
-    while (I2CUART3.available())
-      Serial.write(I2CUART3.read());
-    Serial.print("UART4 RX: ");
-    while (I2CUART4.available())
-      Serial.write(I2CUART4.read());
-    Serial.print("UART6 RX: ");
-    while (I2CUART6.available())
-      Serial.write(I2CUART6.read());
     delay(100);
+    if(I2CUART1.readStringUntil('\n') != String("UART5 loop " + String(i)))
+    {
+      Serial.println("UART5 to UART1 communication failed");
+      test_result = false;
+    }
+    if(I2CUART2.readStringUntil('\n') != String("UART5 loop " + String(i)))
+    {
+      Serial.println("UART5 to UART2 communication failed");
+      test_result = false;
+    }
+    if(I2CUART3.readStringUntil('\n') != String("UART5 loop " + String(i)))
+    {
+      Serial.println("UART5 to UART3 communication failed");
+      test_result = false;
+    }
+    if(I2CUART4.readStringUntil('\n') != String("UART5 loop " + String(i)))
+    {
+      Serial.println("UART5 to UART4 communication failed");
+      test_result = false;
+    }
+    if(I2CUART6.readStringUntil('\n') != String("UART5 loop " + String(i)))
+    {
+      Serial.println("UART5 to UART6 communication failed");
+      test_result = false;
+    }
   }
 
   for(uint8_t i=0; i<test_loops; i++)
   {
     I2CUART6.printf("UART6 loop %d\n", i);
-    Serial.print("UART1 RX: ");
-    while (I2CUART1.available())
-      Serial.write(I2CUART1.read());
-    Serial.print("UART2 RX: ");
-    while (I2CUART2.available())
-      Serial.write(I2CUART2.read());
-    Serial.print("UART3 RX: ");
-    while (I2CUART3.available())
-      Serial.write(I2CUART3.read());
-    Serial.print("UART4 RX: ");
-    while (I2CUART4.available())
-      Serial.write(I2CUART4.read());
-    Serial.print("UART5 RX: ");
-    while (I2CUART5.available())
-      Serial.write(I2CUART5.read());
     delay(100);
+    if(I2CUART1.readStringUntil('\n') != String("UART6 loop " + String(i)))
+    {
+      Serial.println("UART6 to UART1 communication failed");
+      test_result = false;
+    }
+    if(I2CUART2.readStringUntil('\n') != String("UART6 loop " + String(i)))
+    {
+      Serial.println("UART6 to UART2 communication failed");
+      test_result = false;
+    }
+    if(I2CUART3.readStringUntil('\n') != String("UART6 loop " + String(i)))
+    {
+      Serial.println("UART6 to UART3 communication failed");
+      test_result = false;
+    }
+    if(I2CUART4.readStringUntil('\n') != String("UART6 loop " + String(i)))
+    {
+      Serial.println("UART6 to UART4 communication failed");
+      test_result = false;
+    }
+    if(I2CUART5.readStringUntil('\n') != String("UART6 loop " + String(i)))
+    {
+      Serial.println("UART6 to UART5 communication failed");
+      test_result = false;
+    }
+  }
+
+
+
+  if(test_result)
+  {
+    Serial.println("UART Test Passed");
+  }
+  else
+  {
+    Serial.println("UART Test Failed==============================================================================!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   }
 
 } 
 
 void InitL9822E(void)
 {
-  SPI.begin(DRV_SCK, DRV_MISO, DRV_MOSI);
-  Driver.begin(SPI, 1000000); // 1 MHz (до 2 MHz по datasheet)
+  spiL9822.begin(DRV_SCK, DRV_MISO, DRV_MOSI);
+  Driver.begin(spiL9822, 1000000); // 1 MHz (до 2 MHz по datasheet)
+
+  const uint16_t values[] = {4250, 2925, 2250, 1837, 1561, 1363, 1214, 1100}; // Example PWM values for channels
+  const uint8_t deviation = 7; // 7 percent deviation allowed
+
+  const uint16_t solenoid_power_value = 7465; // 
+
+  const uint16_t ai_switch_up = 3210;
+  const uint16_t ai_switch_down = 7677;
+
+  Serial.println("Solenoid output Test Start");
+
+  bool test_passed = true;
 
   for (size_t i = 0; i < 8; i++)
   {
     Driver.setChannel(0, i, true);
     Driver.write();
     delay(100);
+
+    //PrintAIChannel(4);
+
+    if(!CheckValueDeviation(values[i], ReadAIChanelmV(4), deviation))
+    {
+      Serial.println("Solenoid output Test Failed at channel " + String(i));
+      test_passed = false;
+    }
   }
 
-  delay(500);
-
-  for (size_t i = 0; i < 8; i++)
-  {
-    Driver.setChannel(0, i, false);
-    Driver.write();
-    delay(100);
-  }
+  Driver.setAll(false);
+  Driver.write();
 
   for (size_t i = 0; i < 8; i++)
   {
     Driver.setChannel(1, i, true);
     Driver.write();
     delay(100);
+
+    //PrintAIChannel(0);
+
+    if(!CheckValueDeviation(values[i], ReadAIChanelmV(0), deviation))
+    {
+      Serial.println("Solenoid output Test Failed at channel " + String(i+8));
+      test_passed = false;
+    }
   }
   
-  delay(500);
-  
-  for (size_t i = 0; i < 8; i++)
+  Driver.setAll(false);
+  Driver.write();
+
+  if(!CheckValueDeviation(solenoid_power_value, ReadAIChanelmV(5), deviation))
   {
-    Driver.setChannel(1, i, false);
-    Driver.write();
-    delay(100);
+    Serial.println("Solenoid output 0-7 Power Test Failed");
+    test_passed = false;
+  }
+
+  if(!CheckValueDeviation(solenoid_power_value, ReadAIChanelmV(1), deviation))
+  {
+    Serial.println("Solenoid output 8-15 Power Test Failed");
+    test_passed = false;
+  }
+
+  if(!CheckValueDeviation(solenoid_power_value, ReadAIChanelmV(7), deviation))
+  {
+    Serial.println("AI 4-7 24V Power Supply Test Failed");
+    test_passed = false;
+  }
+
+  if(!CheckValueDeviation(solenoid_power_value, ReadAIChanelmV(3), deviation))
+  {
+    Serial.println("AI 0-3 24V Power Supply Test Failed");
+    test_passed = false;
+  }
+
+  if ((!CheckValueDeviation(ai_switch_up, ReadAIChanelmV(2), deviation)||(!CheckValueDeviation(ai_switch_up, ReadAIChanelmV(6), deviation))))
+  {
+    while ((CheckValueDeviation(ai_switch_down, ReadAIChanelmV(2), deviation)&&(CheckValueDeviation(ai_switch_down, ReadAIChanelmV(6), deviation))))
+    {
+      Serial.println("Please set the AI switch to UP position, if already set, check for PCB faults");
+      delay(1000);
+    }
+
+    if ((!CheckValueDeviation(ai_switch_up, ReadAIChanelmV(2), deviation)||(!CheckValueDeviation(ai_switch_up, ReadAIChanelmV(6), deviation))))
+    {
+      Serial.println("AI Switch UP position Test Failed");
+      test_passed = false;
+    }
+  }
+
+  if ((!CheckValueDeviation(ai_switch_down, ReadAIChanelmV(2), deviation)&&(!CheckValueDeviation(ai_switch_down, ReadAIChanelmV(6), deviation))))
+  {
+    while ((CheckValueDeviation(ai_switch_up, ReadAIChanelmV(2), deviation)&&(CheckValueDeviation(ai_switch_up, ReadAIChanelmV(6), deviation))))
+    {
+      Serial.println("Please set the AI switch to DOWN position, if already set, check for PCB faults");
+      delay(1000);
+    }
+
+    if ((!CheckValueDeviation(ai_switch_down, ReadAIChanelmV(2), deviation)&&(!CheckValueDeviation(ai_switch_down, ReadAIChanelmV(6), deviation))))
+    {
+      Serial.println("AI Switch DOWN position Test Failed");
+      test_passed = false;
+    }
+  }
+
+  
+  if(test_passed)
+  {
+    Serial.println("Solenoid output Test Passed");
+  }
+  else
+  {
+    Serial.println("Solenoid output Test Failed ======================================================================!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
   }
 
 } 
+
+uint16_t ReadADCChannel(uint8_t channel)
+{
+  if(channel<4)
+  {
+    return ADS1.readADC_SingleEnded(channel); 
+  }
+  else
+  {
+    return ADS2.readADC_SingleEnded(channel-4);
+  }
+}
+
+void PrintAllAIChannels(void)
+{
+  Serial.print("AI Voltage: ");
+  for(int i = 0; i < 8; i++)
+  {
+    uint16_t tADCvalue = ReadADCChannel(i);
+    Serial.print("AI" + String(i) + ":" + String(adctomv(tADCvalue)) + "mV ");
+  }
+  Serial.println();
+  Serial.flush();
+}
+
+void PrintAIChannel(uint8_t channel)
+{
+  if(channel<8)
+  {
+    uint16_t tADCvalue = ReadADCChannel(channel);
+    Serial.print("AI" + String(channel) + ":" + String(adctomv(tADCvalue)) + "mV ");
+    Serial.println();
+    Serial.flush();
+  }
+}
+
+uint16_t ReadAIChanelmV(uint8_t channel)
+{
+  uint16_t tADCvalue = ReadADCChannel(channel);
+  return adctomv(tADCvalue);
+}
+
+uint16_t adctomv(uint16_t adc)
+{
+  return (adc * referenceVoltage / adcResolution) * scaleFactor;
+}
+
+bool CheckValueDeviation(uint16_t value1, uint16_t value2, uint8_t percent)
+{
+  float deviation = ((float)percent) / 100.0;
+  float lower_limit = value1 * (1.0 - deviation);
+  float upper_limit = value1 * (1.0 + deviation);
+
+  if((value2 >= lower_limit) && (value2 <= upper_limit))
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+void initDIO(void)
+{
+  for (int i = 0; i < 16; i++)
+  {
+    mcp_0.pinMode(i, INPUT);
+  }
+
+  pinMode(SSR0_PIN, OUTPUT);
+  pinMode(SSR1_PIN, OUTPUT);  
+  pinMode(SSR2_PIN, OUTPUT);
+  pinMode(SSR3_PIN, OUTPUT);
+  digitalWrite(SSR0_PIN, LOW);
+  digitalWrite(SSR1_PIN, LOW);  
+  digitalWrite(SSR2_PIN, LOW);
+  digitalWrite(SSR3_PIN, LOW);  
+
+  Serial.println("DIO/SSR Test Start");
+
+  bool test_passed = true;
+
+  for(int i = 0; i < 16; i++)
+  {
+    if(mcp_0.digitalRead(i) != HIGH)
+    {
+      Serial.println("DIO Test Failed at DI" + String(i));
+      test_passed = false;
+    }
+  }
+
+  digitalWrite(SSR0_PIN, HIGH);
+  delay(100); 
+  if
+  ((mcp_0.digitalRead(0) != LOW)||
+    (mcp_0.digitalRead(1) != HIGH)||
+    (mcp_0.digitalRead(2) != HIGH)||
+    (mcp_0.digitalRead(3) != HIGH)||
+    (mcp_0.digitalRead(4) != LOW)||
+    (mcp_0.digitalRead(5) != HIGH)||
+    (mcp_0.digitalRead(6) != HIGH)||
+    (mcp_0.digitalRead(7) != HIGH)||
+    (mcp_0.digitalRead(8) != LOW)||
+    (mcp_0.digitalRead(9) != HIGH)||
+    (mcp_0.digitalRead(10) != HIGH)||
+    (mcp_0.digitalRead(11) != HIGH)||
+    (mcp_0.digitalRead(12) != LOW)||
+    (mcp_0.digitalRead(13) != HIGH)||
+    (mcp_0.digitalRead(14) != HIGH)||
+    (mcp_0.digitalRead(15) != HIGH))
+    {
+      Serial.println("SSR0 or DIO, DI4, DI8, DI12 Test Failed, DI0, DI4, DI8, DI12 should be LOW when SSR0 is ON");
+      test_passed = false;
+    }
+
+  digitalWrite(SSR0_PIN, LOW);
+  delay(100);
+  digitalWrite(SSR1_PIN, HIGH);
+  delay(100);
+    if
+  ((mcp_0.digitalRead(0) != HIGH)||
+    (mcp_0.digitalRead(1) != HIGH)||
+    (mcp_0.digitalRead(2) != LOW)||
+    (mcp_0.digitalRead(3) != HIGH)||
+    (mcp_0.digitalRead(4) != HIGH)||
+    (mcp_0.digitalRead(5) != HIGH)||
+    (mcp_0.digitalRead(6) != LOW)||
+    (mcp_0.digitalRead(7) != HIGH)||
+    (mcp_0.digitalRead(8) != HIGH)||
+    (mcp_0.digitalRead(9) != HIGH)||
+    (mcp_0.digitalRead(10) != LOW)||
+    (mcp_0.digitalRead(11) != HIGH)||
+    (mcp_0.digitalRead(12) != HIGH)||
+    (mcp_0.digitalRead(13) != HIGH)||
+    (mcp_0.digitalRead(14) != LOW)||
+    (mcp_0.digitalRead(15) != HIGH))
+    {
+      Serial.println("SSR1 or DI2, DI6, DI10, DI14 Test Failed, DI2, DI6, DI10, DI14 should be LOW when SSR1 is ON");
+      test_passed = false;
+    }
+  digitalWrite(SSR1_PIN, LOW);
+  delay(100);
+  digitalWrite(SSR2_PIN, HIGH);
+  delay(100);
+    if
+  ((mcp_0.digitalRead(0) != HIGH)||
+    (mcp_0.digitalRead(1) != LOW)||
+    (mcp_0.digitalRead(2) != HIGH)||
+    (mcp_0.digitalRead(3) != HIGH)||
+    (mcp_0.digitalRead(4) != HIGH)||
+    (mcp_0.digitalRead(5) != LOW)||
+    (mcp_0.digitalRead(6) != HIGH)||
+    (mcp_0.digitalRead(7) != HIGH)||
+    (mcp_0.digitalRead(8) != HIGH)||
+    (mcp_0.digitalRead(9) != LOW)||
+    (mcp_0.digitalRead(10) != HIGH)||
+    (mcp_0.digitalRead(11) != HIGH)||
+    (mcp_0.digitalRead(12) != HIGH)||
+    (mcp_0.digitalRead(13) != LOW)||
+    (mcp_0.digitalRead(14) != HIGH)||
+    (mcp_0.digitalRead(15) != HIGH))
+    {
+      Serial.println("SSR2 or DI1, DI5, DI9, DI13 Test Failed, DI1, DI5, DI9, DI13 should be LOW when SSR2 is ON");
+      test_passed = false;
+    }
+  digitalWrite(SSR2_PIN, LOW);
+  delay(100);
+  digitalWrite(SSR3_PIN, HIGH);
+  delay(100);
+      if
+  ((mcp_0.digitalRead(0) != HIGH)||
+    (mcp_0.digitalRead(1) != HIGH)||
+    (mcp_0.digitalRead(2) != HIGH)||
+    (mcp_0.digitalRead(3) != LOW)||
+    (mcp_0.digitalRead(4) != HIGH)||
+    (mcp_0.digitalRead(5) != HIGH)||
+    (mcp_0.digitalRead(6) != HIGH)||
+    (mcp_0.digitalRead(7) != LOW)||
+    (mcp_0.digitalRead(8) != HIGH)||
+    (mcp_0.digitalRead(9) != HIGH)||
+    (mcp_0.digitalRead(10) != HIGH)||
+    (mcp_0.digitalRead(11) != LOW)||
+    (mcp_0.digitalRead(12) != HIGH)||
+    (mcp_0.digitalRead(13) != HIGH)||
+    (mcp_0.digitalRead(14) != HIGH)||
+    (mcp_0.digitalRead(15) != LOW))
+    {
+      Serial.println("SSR3 or DI3, DI7, DI11, DI15 Test Failed, DI3, DI7, DI11, DI15 should be LOW when SSR3 is ON");
+      test_passed = false;
+    }
+  digitalWrite(SSR3_PIN, LOW);
+  delay(100);
+
+
+  if(test_passed)
+  {
+    Serial.println("DIO/SSR Test Passed");
+  }
+  else
+  {
+    Serial.println("DIO/SSR Test Failed ======================================================================!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  }
+  
+}
+
+void PrintAllDIOStates(void)
+{
+  for (int i = 0; i < 16; i++)
+  {
+    Serial.print("DI" + String(i) + ":");
+    mcp_0.digitalRead(i) == HIGH ? Serial.print("HIGH ") : Serial.print("LOW ");
+    delay(1);
+  }
+  Serial.println();
+  Serial.flush();
+}
+
+
