@@ -22,6 +22,8 @@ bool RAK3172::begin(uint8_t rx, uint8_t tx, uint8_t rst) {
     _rak_at_serial->begin(RAK3172_DEFAULT_BAUD, SERIAL_8N1, tx, rx);
     _rak_rst = rst;
     pinMode(_rak_rst, OUTPUT);
+    digitalWrite(_rak_rst, LOW);
+    delay(100);
     digitalWrite(_rak_rst, HIGH);
 
     //sendAT("", RAK3172_TIMEOUT_300, RAK3172_DEBUG);
