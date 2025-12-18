@@ -152,6 +152,9 @@ byte mac[] = {
 #define SSR2_PIN 15
 #define SSR3_PIN 16
 
+//Setup Button definition
+#define SETUP_BUTTON_PIN 5 //Onboard button
+
 
 // Function Prototypes
 void createledtask(void);
@@ -169,6 +172,8 @@ uint16_t ReadAIChanelmV(uint8_t channel);
 bool CheckValueDeviation(uint16_t value1, uint16_t value2, uint8_t percent);
 void initDIO(void);
 void PrintAllDIOStates(void);
+void initButtons(void);
+void PrintAllDIChannels(void);
 
 
 void setup() {
@@ -188,33 +193,19 @@ void setup() {
   mcp_0.begin_I2C(0x20, &I2C2);
   mcp_1.begin_I2C(0x21, &I2C2);  
 
-  // LoRaInit();
-  // InitEthernet();
-  // InitDisplay();
-  // createledtask();
-  // initADC();
-  // InitL9822E();
-  // initUart();
-  // Initds18b20();
+  LoRaInit();
+  InitEthernet();
+  InitDisplay();
+  initADC();
+  InitL9822E();
+  initUart();
+  Initds18b20();
   initDIO();
+  initButtons();
 
-  //delay(100);
-  //InitRelay();
 
-  // for (size_t i = 0; i < RelayCount; i++)
-  // {
-  //   SetRelay(i, HIGH);
-  //   delay(200);
-  //   SetRelay(i, LOW);
-  //   delay(200);
-  // }
 
-  // delay(200);
-  // createledtask();
-
-  //InitRS485();
-  //
-  //initButtons();
+  //createledtask();
 }
 
 void loop() {
@@ -397,17 +388,20 @@ void InitDisplay(void)
         Serial.flush();
         test_result = false;
     }
-    display.setRotation(1);
+    //display.setRotation(1);
     display.clearDisplay();
     display.display();
-    display.setTextSize(1);
-    display.setTextColor(SSD1306_WHITE);
-    display.setCursor(0, 0);
-    display.println("Starting");
-    display.println("IP Address:");
-    display.println(Ethernet.localIP());
+    // display.setTextSize(1);
+    // display.setTextColor(SSD1306_WHITE);
+    // display.setCursor(0, 0);
+    // display.println("Starting");
+    // display.println("IP Address:");
+    // display.println(Ethernet.localIP());
+    // display.display();
+    // delay(2);
+
+    display.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
     display.display();
-    delay(2);
 
   if(test_result)
   {
@@ -471,6 +465,10 @@ void Initds18b20(void) {
   byte data[9];
   byte addr[8];
   float celsius, fahrenheit;
+
+  Serial.println("1-Wire test starting...");
+
+  uint8_t numDevices = 0;
 
   while (ds.search(addr))
   {
@@ -554,22 +552,19 @@ void Initds18b20(void) {
     // Serial.print(" Celsius, ");
     // Serial.print(fahrenheit);
     // Serial.println(" Fahrenheit");
+    numDevices++;
 
   }
 
-  Serial.println("No more addresses.");
-  Serial.println();
+
   ds.reset_search();
-  
-  
-  
-  // if ( !ds.search(addr)) {
-  //   Serial.println("No more addresses.");
-  //   Serial.println();
-  //   ds.reset_search();
-  //   delay(250);
-  //   return;
-  // }
+
+  if(numDevices != 3) {
+    Serial.println("1-Wire test failed! Not all devices detected.===============================================================================!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  }
+  else {
+    Serial.println("1-Wire test Passed ");
+  }
   
   
 }
@@ -1078,6 +1073,8 @@ void initDIO(void)
 
   digitalWrite(SSR0_PIN, HIGH);
   delay(100); 
+  //Pint all DI states
+  PrintAllDIChannels();
   if
   ((mcp_0.digitalRead(0) != LOW)||
     (mcp_0.digitalRead(1) != HIGH)||
@@ -1202,4 +1199,117 @@ void PrintAllDIOStates(void)
   Serial.flush();
 }
 
+void initButtons(void)
+{
 
+  Serial.println("Button Test Start, press buttons to see LED color change");
+
+  mcp_1.pinMode(0, INPUT);
+  mcp_1.pinMode(1, INPUT);
+  mcp_1.pinMode(2, INPUT);
+  mcp_1.pinMode(3, INPUT);
+  pinMode(SETUP_BUTTON_PIN, INPUT); // onboard button
+
+  uint8_t Button_states = 0;
+  uint8_t prev_Button_states = 0;
+
+  while (true)
+  {
+    if(mcp_1.digitalRead(0) == LOW)Button_states = 1;
+    else if(mcp_1.digitalRead(1) == LOW)Button_states = 2;
+    else if(mcp_1.digitalRead(2) == LOW)Button_states = 3;
+    else if(mcp_1.digitalRead(3) == LOW)Button_states = 4;
+    else if(digitalRead(SETUP_BUTTON_PIN) == LOW)Button_states = 5;
+    else Button_states = 0;
+
+    
+    if(prev_Button_states != Button_states)
+    {
+      prev_Button_states = Button_states;
+      switch (Button_states)
+      {
+      case 0:
+      {
+        for (uint16_t i = 0; i < PixelCount; i++)
+        {
+          pixel.SetPixelColor(i, RgbColor(0, 0, 0));
+        }
+        pixel.Show();
+        Serial.println("Button released, LEDs OFF");
+      }break;
+
+      case 1:
+      {
+        for (uint16_t i = 0; i < PixelCount; i++)
+        {
+          pixel.SetPixelColor(i, RgbColor(PixelBrightness, 0, 0));
+        }
+        pixel.Show();
+        Serial.println("Button 4 pressed, LEDs RED");
+      }break;
+
+      case 2:
+      {
+        for (uint16_t i = 0; i < PixelCount; i++)
+        {
+          pixel.SetPixelColor(i, RgbColor(0, PixelBrightness, 0));
+        }
+        pixel.Show();
+        Serial.println("Button 3 pressed, LEDs GREEN");
+      }break;
+
+      case 3:
+      {
+        for (uint16_t i = 0; i < PixelCount; i++)
+        {
+          pixel.SetPixelColor(i, RgbColor(0, 0, PixelBrightness));
+        }
+        pixel.Show();
+        Serial.println("Button 2 pressed, LEDs BLUE");
+      }break;
+
+      case 4:
+      {
+        for (uint16_t i = 0; i < PixelCount; i++)
+        {
+          pixel.SetPixelColor(i, RgbColor(PixelBrightness, PixelBrightness, PixelBrightness));
+        }
+        pixel.Show();
+        Serial.println("Button 1 pressed, LEDs WHITE");
+      }break;
+
+      case 5:
+      {
+        for (uint16_t i = 0; i < PixelCount; i++)
+        {
+          pixel.SetPixelColor(i, RgbColor(PixelBrightness, PixelBrightness, 0));
+        }
+        pixel.Show();
+        Serial.println("Setup Button pressed, LEDs YELLOW");
+      }break;
+
+      
+      default:
+        break;
+      }
+
+    }
+
+
+
+
+  }
+  
+
+}
+
+void PrintAllDIChannels(void)
+{
+  Serial.print("DI States: ");
+  for(int i = 0; i < 16; i++)
+  {
+    mcp_0.digitalRead(i) == HIGH ? Serial.print("DI" + String(i) + ":HIGH ") : Serial.print("DI" + String(i) + ":LOW ");
+  }
+  Serial.println();
+  Serial.flush();
+}
