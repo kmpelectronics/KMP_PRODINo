@@ -201,9 +201,10 @@ void setup() {
   initUart();
   Initds18b20();
   initDIO();
+  display.setRotation(0);
+  display.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
+  display.display();
   initButtons();
-
-
 
   //createledtask();
 }
@@ -308,8 +309,8 @@ void LoRaInit(void)
     test_result = false;
   }
 
-  Serial.println("Version:" + LoRa.getVersion());
-  Serial.flush();
+  // Serial.println("Version:" + LoRa.getVersion());
+  // Serial.flush();
 
   if(LoRa.setLoRaMode(RAK3172_MODE_LORAP2P))
   {
@@ -388,20 +389,20 @@ void InitDisplay(void)
         Serial.flush();
         test_result = false;
     }
-    //display.setRotation(1);
+    display.setRotation(1);
     display.clearDisplay();
     display.display();
-    // display.setTextSize(1);
-    // display.setTextColor(SSD1306_WHITE);
-    // display.setCursor(0, 0);
-    // display.println("Starting");
-    // display.println("IP Address:");
-    // display.println(Ethernet.localIP());
-    // display.display();
-    // delay(2);
-
-    display.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("Starting");
+    display.println("IP Address:");
+    display.println(Ethernet.localIP());
     display.display();
+    delay(2);
+
+    // display.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
+    // display.display();
 
   if(test_result)
   {
@@ -443,7 +444,7 @@ void initADC(void)
     ADS1.setGain(GAIN_TWO);
     ADS2.setGain(GAIN_TWO);
 
-    Serial.println("ADC_HW_V3 init OK");
+    //Serial.println("ADC_HW_V3 init OK");
   }
   else
   {
@@ -472,10 +473,10 @@ void Initds18b20(void) {
 
   while (ds.search(addr))
   {
-      Serial.print("ROM =");
+      //Serial.print("ROM =");
       for( i = 0; i < 8; i++) {
       //Serial.write(' ');
-      Serial.print(addr[i], HEX);
+      //Serial.print(addr[i], HEX);
     }
 
     if (OneWire::crc8(addr, 7) != addr[7]) {
@@ -547,8 +548,8 @@ void Initds18b20(void) {
     }
     celsius = (float)raw / 16.0;
     fahrenheit = celsius * 1.8 + 32.0;
-    Serial.print(" T = ");
-    Serial.println(celsius);
+    //Serial.print(" T = ");
+    //Serial.println(celsius);
     // Serial.print(" Celsius, ");
     // Serial.print(fahrenheit);
     // Serial.println(" Fahrenheit");
@@ -1074,7 +1075,7 @@ void initDIO(void)
   digitalWrite(SSR0_PIN, HIGH);
   delay(100); 
   //Pint all DI states
-  PrintAllDIChannels();
+  //PrintAllDIChannels();
   if
   ((mcp_0.digitalRead(0) != LOW)||
     (mcp_0.digitalRead(1) != HIGH)||
