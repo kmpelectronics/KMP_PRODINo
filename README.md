@@ -92,6 +92,7 @@ uses `Serial1` with automatic DE/RE direction switching.
 |---------|-------|--------------|
 | `Test` | ProDino / SMARTI8 | Relays + RGB LED via a FreeRTOS task (minimal starter) |
 | `PRODINo_ESP32_LoRa_RAK3172_Master_PIO` / `..._Slave_PIO` | ProDino LoRa | Addressed LoRa P2P protocol: read DI, read/set relays remotely |
+| `RAK3172_Test_Master_PIO` / `..._Slave_PIO` | ProDino LoRa | RAK3172-only PING/PONG test; slave is a test jig and shows module health on the status LED |
 | `RAK3172_P2P_Master_PIO` / `..._Slave_PIO` (+ `_TTESTER_`) | RAK3172 | Lower-level RAK3172 P2P messaging |
 | `LoRaWAN_Analog_IO_V1.0` | — | ADS1015 ADC + GP8403 DAC analog I/O |
 | `Accu-Speed_TTESTER_PIO` | ProDino | ADS1X15 + SSD1306 OLED + MCP23X17 |

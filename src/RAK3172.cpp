@@ -157,7 +157,7 @@ bool RAK3172::receiveMassage(uint8_t *message, size_t maxSize, size_t *messageSi
         if(hexLength == 0)
         {
             // No message received
-            messageSize = 0;
+            *messageSize = 0;
             return true;
         }
 
