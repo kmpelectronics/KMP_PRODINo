@@ -102,6 +102,7 @@ uses `Serial1` with automatic DE/RE direction switching.
 | `SMARTI8_A7672E` | SMARTI8 | A7672E GSM modem (TinyGSM) + ADS1X15 |
 | `RTC_Addon_RV-3028_PIO` | SMARTI8 | External RV-3028 RTC over I2C |
 | `0P789 - Sinlog-ESP32EXv10 - Example` | Sinlog-ESP32EXv10 | W5500 Ethernet + WiFi on one lwIP stack (ESP32 core 3.x): web UI with live opto inputs, an RS485 terminal, OLED text push, and a WiFi setup wizard (AP + captive-portal fallback). Needs core 3.x - see its platformio.ini |
+| `Stamp-C3U-RS485-Echo` | M5Stamp C3U + PWR485 | RS485 echo tester (ESP32-C3): "ping" -> "pong", any other string echoed reversed ("1234" -> "4321"); WS2812 LED blinks green on RX / blue on TX. RX=G8, TX=G10 |
 
 ## License / support
 
